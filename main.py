@@ -31,7 +31,7 @@ app.add_middleware(
 def read_root():
     return {"Hello": "World"}
 
-
+# Upload transcript file
 @app.post("/upload")
 async def handle_form_upload(file: UploadFile = File(...)):
     print(file.filename)
@@ -45,7 +45,7 @@ async def handle_form_upload(file: UploadFile = File(...)):
     print(f"File saved: {file_location}")
     return JSONResponse(content={"info": "File saved", "filename": file.filename}, status_code=200)
 
-# Interview engine
+# Interview engine, takes a transcript file and returns an audio file of the AI's response
 @app.post("/interview")
 async def handle_interview(file: UploadFile = File(...)):
     file_location = f"transcripts/{file.filename}"
@@ -65,7 +65,8 @@ async def handle_interview(file: UploadFile = File(...)):
         return JSONResponse(content={"error": "Failed to generate audio file"}, status_code=500)
     
 
-# Upload audio file, convert from webM to mp3 and upload to S3
+# Upload audio file, convert from WebM to mp3 and upload to S3
+# WebM audio format are the most widely supported by all browser types
 @app.post("/upload-audio")
 async def upload_audio(file: UploadFile = File(...)):
     try:
@@ -78,6 +79,7 @@ async def upload_audio(file: UploadFile = File(...)):
         return JSONResponse(status_code=500, content={"message": str(e)})
     
 
+# End the interview, convert all WebM audio files to MP3 and upload to S3 to process for the recording page
 @app.post("/end")
 async def end_interview(background_tasks: BackgroundTasks):
 
@@ -105,7 +107,7 @@ async def end_interview(background_tasks: BackgroundTasks):
     else:
         return JSONResponse(content={"error": "Failed to generate audio file"}, status_code=500)
     
-
+# Starts a new interview with a clean slate
 @app.post("/begin")
 async def begin_interview():
 
@@ -120,7 +122,8 @@ async def begin_interview():
         return FileResponse(response_path, media_type='audio/mpeg', filename=os.path.basename(response_path))
     else:
         return JSONResponse(content={"error": "Failed to generate audio file"}, status_code=500)
-    
+
+# Get all files in the S3 bucket
 @app.get("/get_files")
 def get_files():
     bucket_name = 'apriora'
@@ -132,6 +135,7 @@ def get_files():
     else:
         return JSONResponse(content={"error": "Failed to get files from bucket"}, status_code=500)
     
+# Delete all files in the S3 bucket
 @app.delete("/delete_interview")
 def delete_interview():
     bucket_name = 'apriora'
