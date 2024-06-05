@@ -145,11 +145,5 @@ def delete_file(bucket_name: str, object_name: str):
         print(f"An error occurred while deleting the object: {e}")
         return False
 
-# FILE_PATH = "uploads/transcript1.pdf"
-# upload = upload_file(FILE_PATH, "thothai", "test1")
-
-# print(upload)
-
-# download_file("thothai", "IMG_2390-2.jpg", "uploads/image")
-
-# delete_file("thothai", "search.zip")
+# FILE_PATH = "pre_recorded_audio/begin_interview.mp3"
+# upload = upload_file(FILE_PATH, "apriora", "test1.mp3")

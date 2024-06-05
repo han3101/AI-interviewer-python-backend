@@ -1,3 +1,5 @@
 .env
 /transcripts
 /response
+/uploads
+/audio

@@ -1,8 +1,9 @@
-from fastapi import FastAPI, status
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, File, UploadFile, Form, BackgroundTasks, status
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-import os, interviewer
+import os, interviewer, asyncio
+import shutil, subprocess, s3
+from concurrent.futures import ThreadPoolExecutor
 
 app = FastAPI()
 
@@ -13,6 +14,7 @@ origins = [
     "https://apriora-sprint-hans-projects-299e57dd.vercel.app",
     "https://apriora-sprint.vercel.app",
     "http://20.9.136.70:3000",
+    "http://localhost:3001"
 ]
 
 # Add the CORS middleware to your FastAPI application
@@ -42,6 +44,7 @@ async def handle_form_upload(file: UploadFile = File(...)):
     print(f"File saved: {file_location}")
     return JSONResponse(content={"info": "File saved", "filename": file.filename}, status_code=200)
 
+# Interview engine
 @app.post("/interview")
 async def handle_interview(file: UploadFile = File(...)):
     file_location = f"transcripts/{file.filename}"
@@ -61,14 +64,39 @@ async def handle_interview(file: UploadFile = File(...)):
         return JSONResponse(content={"error": "Failed to generate audio file"}, status_code=500)
     
 
+# Upload audio file, convert from webM to mp3 and upload to S3
+@app.post("/upload-audio")
+async def upload_audio(file: UploadFile = File(...)):
+    try:
+        # Save uploaded file to disk or process as needed
+        file_location = f"uploads/{file.filename}"
+        with open(file_location, "wb") as f:
+            f.write(await file.read())
+        return JSONResponse(status_code=200, content={"message": "File uploaded successfully", "filePath": file_location})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"message": str(e)})
+    
+
 @app.post("/end")
-async def end_interview():
+async def end_interview(background_tasks: BackgroundTasks):
 
     # Load pre_recorded ending
     response_path = 'pre_recorded_audio/end_interview.mp3'
 
     # Wipe GPT memory and conversation
     interviewer.wipe_conversation()
+
+    # Convert webm to mp3
+    convert_webm_to_mp3('uploads')
+
+    # Schedule the upload of all files to run in the background
+    background_tasks.add_task(async_upload_files, 'audio')
+    background_tasks.add_task(async_upload_files, 'response')
+    background_tasks.add_task(async_upload_files, 'uploads')
+
+    # Clear transcripts
+    clear_directories(['transcripts'])
+
     
     # Check if the MP3 file was successfully created
     if os.path.exists(response_path):
@@ -91,3 +119,79 @@ async def begin_interview():
         return FileResponse(response_path, media_type='audio/mpeg', filename=os.path.basename(response_path))
     else:
         return JSONResponse(content={"error": "Failed to generate audio file"}, status_code=500)
+    
+
+
+
+
+# ========================= Helper functions =========================
+def clear_directories(dirs):
+    """Clear all files in the specified list of directories."""
+    for directory in dirs:
+        # Check if the directory exists
+        if os.path.exists(directory):
+            # Remove all files and subdirectories in the directory
+            for item in os.listdir(directory):
+                item_path = os.path.join(directory, item)
+                if os.path.isfile(item_path) or os.path.islink(item_path):
+                    os.unlink(item_path)  # Remove files and links
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path)  # Remove directories
+            print(f"Cleared all items in {directory}.")
+        else:
+            print(f"Directory {directory} does not exist.")
+
+
+def convert_webm_to_mp3(directory):
+    """
+    Convert all WebM audio files in the specified directory to MP3 format using ffmpeg.
+
+    Parameters:
+    directory (str): Path to the directory containing WebM files.
+    """
+    # List all files in the given directory
+    for filename in os.listdir(directory):
+        # Check if the file is a WebM file
+        if filename.endswith(".WebM"):
+            # Full path to the source WebM file
+            webm_path = os.path.join(directory, filename)
+            # Generate a new file name with .mp3 extension
+            mp3_path = os.path.join('audio', os.path.splitext(filename)[0] + ".mp3")
+            
+            # Command to use ffmpeg to convert the audio format
+            command = ['ffmpeg', '-i', webm_path, '-vn', '-ab', '192k', '-ar', '44100', '-y', mp3_path]
+            
+            try:
+                # Execute the ffmpeg command
+                subprocess.run(command, check=True)
+                print(f"Converted '{webm_path}' to '{mp3_path}' successfully.")
+            except subprocess.CalledProcessError:
+                print(f"Failed to convert '{webm_path}'. ffmpeg error.")
+            except Exception as e:
+                print(f"An error occurred while converting '{webm_path}': {str(e)}")
+
+
+async def async_upload_files(directory):
+    """Asynchronously upload all .mp3 files in the specified directory to an S3 bucket."""
+    loop = asyncio.get_running_loop()
+    executor = ThreadPoolExecutor()
+
+    # List all .mp3 files in the directory
+    audio_files = [os.path.join(directory, file) for file in os.listdir(directory) if file.endswith('.mp3')]
+
+    # Create asynchronous upload tasks
+    tasks = []
+    for audio_file in audio_files:
+        # Schedule synchronous upload function to run in a separate thread
+        task = loop.run_in_executor(executor, s3.upload_file, audio_file, 'apriora', audio_file)
+        tasks.append(task)
+
+    # Wait for all tasks to complete
+    await asyncio.gather(*tasks)
+
+    # Clear the directory after uploading
+    clear_directories([directory])
+
+    # Cleanup executor
+    executor.shutdown(wait=True)
+    print("All files have been uploaded.")

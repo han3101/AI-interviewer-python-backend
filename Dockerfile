@@ -7,11 +7,12 @@ WORKDIR /app
 COPY . /app
 
 # Create directories called transcripts and response
-RUN mkdir transcripts response
-
+RUN mkdir transcripts response audio uploads
 # Install any necessary packages specified in requirements.txt
 # Include Uvicorn with standard requirements
 RUN pip install --no-cache-dir -r requirements.txt uvicorn[standard]
+
+RUN apt-get update && apt-get install -y ffmpeg
 
 EXPOSE 8080
 
