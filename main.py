@@ -13,6 +13,7 @@ origins = [
     "http://192.168.86.200:3000", # My personal frontend IP
     "https://apriora-sprint-hans-projects-299e57dd.vercel.app",
     "https://apriora-sprint.vercel.app",
+    "https://apriora-sprint-lxbv53r8h-hans-projects-299e57dd.vercel.app",
     "http://20.9.136.70:3000",
     "http://localhost:3001"
 ]
