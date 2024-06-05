@@ -97,6 +97,12 @@ def interviewer(urlPath: str, filename: str, ) -> str:
     print(f"Total Time taken: {time() - current_time}")
     # Return the path of the saved audio file
     return save_file_path
+
+
+def wipe_conversation():
+    global context, conversation
+    conversation = {"Conversation": []}
+    context = "You are an AI interviewer called Katy. You are interviewing a candidate for a software engineering position. Keep your responses to no more than 2-3 sentences."
     
 
 
