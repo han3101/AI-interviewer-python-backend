@@ -12,7 +12,7 @@ origins = [
     "http://192.168.86.200:3000", # My personal frontend IP
     "https://apriora-sprint-hans-projects-299e57dd.vercel.app/",
     "https://apriora-sprint.vercel.app/",
-    "http://20.9.136.70:8080"
+    "http://20.9.136.70:3000"
 ]
 
 # Add the CORS middleware to your FastAPI application
