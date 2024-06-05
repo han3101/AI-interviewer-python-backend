@@ -9,6 +9,7 @@ app = FastAPI()
 # Define the list of origins that should be allowed to make requests to your API
 origins = [
     "http://localhost:3000",  # Your frontend origin
+    "http://192.168.86.200:3000" # My personal frontend IP
 ]
 
 # Add the CORS middleware to your FastAPI application
@@ -58,10 +59,26 @@ async def handle_interview(file: UploadFile = File(...)):
     
 
 @app.post("/end")
-async def handle_interview():
+async def end_interview():
 
-    # Call interviewer method with terminal end_endInterview.txt
-    response_path = interviewer.interviewer('end_endInterview.txt', 'end_endInterview.txt')
+    # Load pre_recorded ending
+    response_path = 'pre_recorded_audio/end_interview.mp3'
+
+    # Wipe GPT memory and conversation
+    interviewer.wipe_conversation()
+    
+    # Check if the MP3 file was successfully created
+    if os.path.exists(response_path):
+        return FileResponse(response_path, media_type='audio/mpeg', filename=os.path.basename(response_path))
+    else:
+        return JSONResponse(content={"error": "Failed to generate audio file"}, status_code=500)
+    
+
+@app.post("/begin")
+async def begin_interview():
+
+    # Load pre_recorded ending
+    response_path = 'pre_recorded_audio/begin_interview.mp3'
 
     # Wipe GPT memory and conversation
     interviewer.wipe_conversation()
