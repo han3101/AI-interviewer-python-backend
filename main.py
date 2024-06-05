@@ -10,6 +10,8 @@ app = FastAPI()
 origins = [
     "http://localhost:3000",  # Your frontend origin
     "http://192.168.86.200:3000" # My personal frontend IP
+    "https://apriora-sprint-hans-projects-299e57dd.vercel.app/"
+    "https://apriora-sprint.vercel.app/"
 ]
 
 # Add the CORS middleware to your FastAPI application
