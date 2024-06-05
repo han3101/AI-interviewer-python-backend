@@ -92,10 +92,10 @@ async def end_interview(background_tasks: BackgroundTasks):
     # Schedule the upload of all files to run in the background
     background_tasks.add_task(async_upload_files, 'audio')
     background_tasks.add_task(async_upload_files, 'response')
-    background_tasks.add_task(async_upload_files, 'uploads')
+    background_tasks.add_task(async_upload_files, 'transcripts')
 
     # Clear transcripts
-    clear_directories(['transcripts'])
+    clear_directories(['uploads'])
 
     
     # Check if the MP3 file was successfully created
@@ -119,6 +119,18 @@ async def begin_interview():
         return FileResponse(response_path, media_type='audio/mpeg', filename=os.path.basename(response_path))
     else:
         return JSONResponse(content={"error": "Failed to generate audio file"}, status_code=500)
+    
+@app.get("/get_files")
+def get_files():
+    bucket_name = 'apriora'
+    files = s3.print_files(bucket_name)
+
+    sorted_files = sort_and_format_files(files)
+    if sorted_files is not None:
+        return JSONResponse(content=sorted_files, status_code=200)
+    else:
+        return JSONResponse(content={"error": "Failed to get files from bucket"}, status_code=500)
+
     
 
 
@@ -176,8 +188,8 @@ async def async_upload_files(directory):
     loop = asyncio.get_running_loop()
     executor = ThreadPoolExecutor()
 
-    # List all .mp3 files in the directory
-    audio_files = [os.path.join(directory, file) for file in os.listdir(directory) if file.endswith('.mp3')]
+    # List files in the directory
+    audio_files = [os.path.join(directory, file) for file in os.listdir(directory)]
 
     # Create asynchronous upload tasks
     tasks = []
@@ -195,3 +207,38 @@ async def async_upload_files(directory):
     # Cleanup executor
     executor.shutdown(wait=True)
     print("All files have been uploaded.")
+
+def sort_and_format_files(files):
+    base_url = "https://pub-c75380cac0bd497dabf63c820b8d729a.r2.dev/"
+    file_map = {}
+
+    # Process each file to organize by timestamp
+    for file in files:
+        parts = file.split('_')
+        file_type = parts[0].split('/')[0]  # Extract the prefix like 'transcripts'
+        timestamp = parts[1].split('.')[0]  # Extract the timestamp part
+
+        # Ensure timestamp is numeric
+        if not timestamp.isdigit():
+            continue
+
+        if timestamp not in file_map:
+            file_map[timestamp] = {}
+
+        # Convert file path to a URL format
+        url_path = file.replace('/', '%2F')
+        full_url = base_url + url_path
+
+        # Organize files by type under each timestamp
+        if 'transcript' in file_type:
+            file_map[timestamp]['transcript'] = full_url
+        elif 'response' in file_type:
+            file_map[timestamp]['response'] = full_url
+        elif 'audio' in file_type:
+            file_map[timestamp]['audio'] = full_url
+
+    # Create a new dictionary with sorted timestamps
+    sorted_timestamps = sorted(file_map.keys())  # Sort keys numerically
+    sorted_file_map = {ts: file_map[ts] for ts in sorted_timestamps}
+
+    return sorted_file_map

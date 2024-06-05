@@ -144,6 +144,29 @@ def delete_file(bucket_name: str, object_name: str):
     except Exception as e:
         print(f"An error occurred while deleting the object: {e}")
         return False
+    
+def print_files(bucket_name: str):
+    # Create boto3 client
+    try:
+        s3_client = s3.meta.client
+    except ClientError as err:
+        print("Failed to create boto3 client.\n" + str(err))
+        return False
+
+    files = []
+    # List objects in a bucket
+    try:
+        response = s3_client.list_objects_v2(Bucket=bucket_name)
+        for obj in response.get('Contents', []):
+            print(f" - {obj['Key']}")
+            print(f" - {obj}")
+            files.append(obj['Key'])
+        return files
+    except Exception as e:
+        print(f"An error occurred while listing objects: {e}")
+        return None
+    
+# print_files("apriora")
 
 # FILE_PATH = "pre_recorded_audio/begin_interview.mp3"
 # upload = upload_file(FILE_PATH, "apriora", "test1.mp3")
