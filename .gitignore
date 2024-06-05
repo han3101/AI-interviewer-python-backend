@@ -3,3 +3,5 @@
 /response
 /uploads
 /audio
+
+.__pycache__
