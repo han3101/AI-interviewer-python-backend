@@ -130,6 +130,17 @@ def get_files():
         return JSONResponse(content=sorted_files, status_code=200)
     else:
         return JSONResponse(content={"error": "Failed to get files from bucket"}, status_code=500)
+    
+@app.delete("/delete_interview")
+def delete_interview():
+    bucket_name = 'apriora'
+    files = s3.print_files(bucket_name)
+    if files is not None:
+        for file in files:
+            s3.delete_file(bucket_name, file)
+        return JSONResponse(content={"message": "All files deleted successfully"}, status_code=200)
+    else:
+        return JSONResponse(content={"error": "Failed to delete files from bucket"}, status_code=500)
 
     
 

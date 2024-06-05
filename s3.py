@@ -159,7 +159,6 @@ def print_files(bucket_name: str):
         response = s3_client.list_objects_v2(Bucket=bucket_name)
         for obj in response.get('Contents', []):
             print(f" - {obj['Key']}")
-            print(f" - {obj}")
             files.append(obj['Key'])
         return files
     except Exception as e:
